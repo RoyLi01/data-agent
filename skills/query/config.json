@@ -1,0 +1,1 @@
+{"name":"metric_query","description":"按登记口径查询注册、激活、转化、留存和成本；遇到歧义澄清","allowed_tools":["search_metadata","query_metric"],"max_calls":6}

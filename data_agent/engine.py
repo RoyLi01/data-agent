@@ -1,0 +1,103 @@
+import asyncio,time,copy
+from .config import Settings
+from .seed import seed
+from .store import Store,reuse
+from .retrieval import Retriever
+from .skills import SkillRegistry,Budget
+from .planner import Planner,ModelError
+from .gateway import Gateway
+from .query import Warehouse,QueryError
+from .analysis import analyze
+from .catalog import METRICS
+
+class Engine:
+    def __init__(self,settings=None):
+        self.settings=settings or Settings.env();seed(self.settings.data_dir)
+        self.store=Store(self.settings.data_dir);self.retriever=Retriever();self.skills=SkillRegistry()
+        self.planner=Planner(self.settings.mode,self.settings.as_of);self.gateway=Gateway(self.settings)
+        self.retrieval_lock=asyncio.Lock()
+
+    async def ask(self,question,session_id,request_id,owner='local-demo'):
+        t,fresh=self.store.create(question,session_id,request_id,owner)
+        if fresh:await self.run(t)
+        return t
+
+    async def resume(self,task_id,answer,version,request_id,owner='local-demo'):
+        t,fresh=self.store.claim_resume(task_id,owner,answer,version,request_id)
+        if fresh:await self.run(t)
+        return t
+
+    def step(self,t,state,note,**data):
+        t['trace'].append({'state':state,'note':note,'time':time.time()})
+        self.store.save(t,state,**data)
+
+    async def retrieve(self,question,contract=None):
+        async with self.retrieval_lock:
+            return await asyncio.to_thread(self.retriever.search,question,contract)
+
+    async def run(self,t):
+        started=time.monotonic();budget=Budget(self.settings.max_calls)
+        try:
+            query_skill=self.skills.load('metric_query')
+            previous=self.store.latest(t['session_id'],t['owner'])
+            self.step(t,'PLANNING','加载查询技能及历史结果元数据',mode=self.settings.mode,skills=self.skills.list())
+            budget.consume(query_skill,'search_metadata')
+            preliminary=await self.retrieve(t['question'])
+            plan,model_info=await asyncio.to_thread(self.planner.plan,t['question'],previous['contract'] if previous else None,query_skill,preliminary['chunks'])
+            t['model']=model_info;t['plan']=plan.model_dump(mode='json')
+            if plan.action=='clarify':
+                self.step(t,'NEEDS_CLARIFICATION',plan.clarification,clarification=plan.clarification)
+                return
+            c=plan.contract
+            if c.channel and c.channel not in ['渠道A','渠道B','渠道C','自然流量']:
+                raise QueryError('UNKNOWN_CHANNEL','渠道名称不在模拟数据的登记范围内')
+            self.step(t,'RETRIEVING','按已确认指标补全字段和关联依赖')
+            budget.consume(query_skill,'search_metadata')
+            context=await self.retrieve(t['question'],c)
+            t['retrieval']=context
+            reusable,reason=reuse(previous,c,Warehouse(self.settings).watermark,t['owner'])
+            t['reuse']={'reused':reusable,'reason':reason}
+            if reusable:
+                result=copy.deepcopy(previous)
+                if c.channel and c.channel!=previous['contract'].get('channel'):
+                    result['rows']=[r for r in result['rows'] if r.get('channel')==c.channel]
+                    result['contract']=c.model_dump(mode='json');result['row_count']=len(result['rows'])
+                    result['parent_artifact_id']=previous['id'];result['transform']={'filter_channel':c.channel}
+                    result=self.store.artifact(result,t['session_id'],t['owner'])
+                self.step(t,'ANALYZING',reason,artifact_id=result['id'])
+            else:
+                self.step(t,'VALIDATING','编译已登记指标模板，校验字段、访问范围和 SQL 结构')
+                # Preflight fails fast without sending an invalid contract to the MCP tool.
+                from .query import compile_query,validate_sql
+                sql,_=compile_query(c,Warehouse(self.settings).watermark);validate_sql(sql,sql)
+                self.step(t,'EXECUTING',reason)
+                for attempt in range(2):
+                    budget.consume(query_skill,'query_metric')
+                    try:
+                        result=await self.gateway.query(c.model_dump(mode='json'));break
+                    except (TimeoutError,ConnectionError):
+                        if attempt:raise
+                        t['trace'].append({'state':'RETRY','note':'查询服务暂不可用，重试一次','time':time.time()})
+                result=self.store.artifact(result,t['session_id'],t['owner'])
+                self.step(t,'ANALYZING','加载分析技能，对完整结果执行统计与可视化',artifact_id=result['id'])
+            analysis_skill=self.skills.load('result_analysis');kind=plan.analysis
+            if self.settings.mode=='live':
+                schema={'type':'object','properties':{'kind':{'type':'string','enum':['table','summary','bar','line']}},'required':['kind'],'additionalProperties':False}
+                decision,usage=await asyncio.to_thread(self.planner.model.call,[
+                    {'role':'system','content':'你是分析角色，只选择展示工具类型，不自行计算数据。趋势图需要 date 列。'+analysis_skill['instructions']},
+                    {'role':'user','content':str({'question':t['question'],'columns':result['columns'],'row_count':result['row_count'],'requested':kind})}], 'select_analysis',schema)
+                if decision.get('kind') not in ('table','summary','bar','line'):raise ModelError('分析工具参数无效')
+                kind=decision['kind'];t['analyst_usage']=usage
+            budget.consume(analysis_skill,'analyze_result')
+            report=analyze(result,kind)
+            if result.get('transform'):
+                report['evidence']['transform']=result['transform'];report['evidence']['parent_artifact_id']=result['parent_artifact_id']
+                report['markdown']+='\n结果变换：'+str(result['transform'])+'\n父结果 ID：'+result['parent_artifact_id']+'\n'
+            self.step(t,'COMPLETED','分析完成，可追溯至契约、SQL、结果和分析步骤',report=report,
+                result={'columns':result['columns'],'rows':result['rows'][:200],'total_rows':result['row_count'],'preview_truncated':result['row_count']>200,'is_truncated':result['is_truncated']})
+        except Exception as exc:
+            # No credentials, provider bodies or raw tracebacks in user-facing state.
+            safe=str(exc) if isinstance(exc,(ValueError,QueryError,ModelError,PermissionError)) else '内部执行失败，请查看本地测试或联系维护者'
+            self.step(t,'FAILED',safe,error={'code':getattr(exc,'code',type(exc).__name__),'message':safe})
+        finally:
+            self.store.save(t,t['state'],elapsed_ms=round((time.monotonic()-started)*1000,2),tool_calls=budget.events)

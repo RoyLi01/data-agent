@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "warehouse-data-agent"
+version = "0.1.0"
+description = "Schema RAG, controlled SQL and auditable multi-turn analysis"
+requires-python = ">=3.11"
+dependencies = ["fastapi>=0.115,<1", "uvicorn>=0.31,<1", "httpx>=0.28,<1", "sqlglot>=26,<30", "mcp>=1.12,<2", "numpy>=1.26,<3", "python-dotenv>=1,<2"]
+
+[project.optional-dependencies]
+test = ["pytest>=8,<9"]
+vector = ["pymilvus>=2.5,<3"]
+
+[tool.setuptools.packages.find]
+include = ["data_agent*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

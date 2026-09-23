@@ -1,0 +1,19 @@
+.venv/
+.env
+__pycache__/
+.pytest_cache/
+runtime/
+*.pyc
+.DS_Store
+
+# Local credentials, data files and build outputs
+.env.*
+!.env.example
+*.sqlite
+*.sqlite-*
+*.db
+*.pem
+*.key
+dist/
+build/
+*.egg-info/

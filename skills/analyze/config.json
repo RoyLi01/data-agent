@@ -1,0 +1,1 @@
+{"name":"result_analysis","description":"分析完整查询结果，生成统计摘要、趋势图或柱状图及证据报告","allowed_tools":["analyze_result"],"max_calls":3}

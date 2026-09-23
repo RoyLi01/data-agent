@@ -1,0 +1,31 @@
+services:
+  data-agent:
+    build: .
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      AGENT_MODE: ${AGENT_MODE:-offline}
+      AGENT_TRANSPORT: stdio
+      AGENT_DATA_DIR: /app/runtime
+      MODEL_BASE_URL: ${MODEL_BASE_URL:-}
+      MODEL_NAME: ${MODEL_NAME:-}
+      MODEL_API_KEY: ${MODEL_API_KEY:-}
+      EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-}
+      EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-}
+      RERANK_URL: ${RERANK_URL:-}
+      RERANK_MODEL: ${RERANK_MODEL:-}
+      RERANK_API_KEY: ${RERANK_API_KEY:-}
+      AGENT_ACCESS_TOKEN: ${AGENT_ACCESS_TOKEN:-}
+    volumes:
+      - agent-data:/app/runtime
+    init: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+volumes:
+  agent-data:
