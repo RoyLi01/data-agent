@@ -1,5 +1,7 @@
 """Offline engineering benchmark. Never reports fixture accuracy as LLM accuracy."""
-import asyncio,json,statistics,tempfile,time,uuid,sys
+import asyncio,json,statistics,tempfile,time,uuid,sys,os
+os.environ["RETRIEVAL_BACKEND"]="fixture"
+os.environ["RERANK_BACKEND"]="fixture"
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT))
 from data_agent.config import Settings
@@ -73,6 +75,7 @@ async def evaluate(root):
         a=await e.ask(q,None,uuid.uuid4().hex)
         b=await e.resume(a['id'],answer,a['version'],uuid.uuid4().hex) if a['state']=='NEEDS_CLARIFICATION' else a
         clarify.append({'question':q,'correct':a['state']=='NEEDS_CLARIFICATION' and b['state']=='COMPLETED'})
+    e.memory.close()
     n=len(details)
     return {'evaluation_type':'offline_engineering_fixture','llm_accuracy':None,
         'warning':'开发回归集，不是独立真实模型测试；不支持据此声称 LLM 准确率或线上收益。依赖补全覆盖提升是注册表规则覆盖效果。',

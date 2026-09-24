@@ -1,24 +1,29 @@
 import asyncio,time,copy
 from .config import Settings
 from .seed import seed
-from .store import Store,reuse
+from .store import Store
 from .retrieval import Retriever
 from .skills import SkillRegistry,Budget
 from .planner import Planner,ModelError
 from .gateway import Gateway
 from .query import Warehouse,QueryError
 from .analysis import analyze
-from .catalog import METRICS
+from .memory import Memory
+from .context import ContextAggregator,route
+from .models import Plan
 
 class Engine:
     def __init__(self,settings=None):
         self.settings=settings or Settings.env();seed(self.settings.data_dir)
         self.store=Store(self.settings.data_dir);self.retriever=Retriever();self.skills=SkillRegistry()
         self.planner=Planner(self.settings.mode,self.settings.as_of);self.gateway=Gateway(self.settings)
+        self.memory=Memory(self.store,self.planner.model if self.settings.mode=='live' else None)
+        self.aggregator=ContextAggregator(self.planner)
         self.retrieval_lock=asyncio.Lock()
 
-    async def ask(self,question,session_id,request_id,owner='local-demo'):
-        t,fresh=self.store.create(question,session_id,request_id,owner)
+    async def ask(self,question,session_id,request_id,owner='local-demo',memory_ids=None):
+        self.memory.selected(owner,memory_ids or [])
+        t,fresh=self.store.create(question,session_id,request_id,owner,memory_ids)
         if fresh:await self.run(t)
         return t
 
@@ -39,13 +44,26 @@ class Engine:
         started=time.monotonic();budget=Budget(self.settings.max_calls)
         try:
             query_skill=self.skills.load('metric_query')
-            previous=self.store.latest(t['session_id'],t['owner'])
-            self.step(t,'PLANNING','加载查询技能及历史结果元数据',mode=self.settings.mode,skills=self.skills.list())
+            self.step(t,'PLANNING','聚合近期对话、异步摘要及主动选中的长期记忆',mode=self.settings.mode,skills=self.skills.list())
+            memories=self.memory.selected(t['owner'],t.get('memory_ids',[]))
+            short=self.memory.snapshot(t['session_id'],t['owner'])
+            candidates=self.memory.artifacts(t['session_id'],t['owner'],memories)
+            aggregate,offline_plan,context_info=await asyncio.to_thread(self.aggregator.aggregate,t['question'],short,candidates,memories)
+            previous=next((a for a in candidates if a['id']==aggregate.artifact_id),None)
+            t['context']={'aggregate':aggregate.model_dump(),'short_memory':short,'selected_memory_ids':[m['id'] for m in memories],
+                          'stale_memory_ids':[m['id'] for m in memories if not m['valid_schema']],'model':context_info}
             budget.consume(query_skill,'search_metadata')
-            preliminary=await self.retrieve(t['question'])
-            plan,model_info=await asyncio.to_thread(self.planner.plan,t['question'],previous['contract'] if previous else None,query_skill,preliminary['chunks'])
+            hints=' '.join(m['source_id']+' '+m['note'][:200] for m in memories if m['valid_schema'] and m['kind']!='result')
+            preliminary=await self.retrieve(aggregate.request+' '+hints)
+            if aggregate.intent=='clarify':
+                plan=Plan(action='clarify',clarification=aggregate.clarification);model_info=context_info
+            elif offline_plan is not None:
+                plan=offline_plan;model_info={'mode':'offline_fixture','tokens':None}
+            else:
+                plan,model_info=await asyncio.to_thread(self.planner.plan,aggregate.request,previous['contract'] if previous else None,query_skill,{'chunks':preliminary['chunks'],'schema_graph':preliminary['schema_graph']})
             t['model']=model_info;t['plan']=plan.model_dump(mode='json')
             if plan.action=='clarify':
+                t['routing']={'suggested':'clarify','effective':'clarify','reason':plan.clarification}
                 self.step(t,'NEEDS_CLARIFICATION',plan.clarification,clarification=plan.clarification)
                 return
             c=plan.contract
@@ -53,9 +71,10 @@ class Engine:
                 raise QueryError('UNKNOWN_CHANNEL','渠道名称不在模拟数据的登记范围内')
             self.step(t,'RETRIEVING','按已确认指标补全字段和关联依赖')
             budget.consume(query_skill,'search_metadata')
-            context=await self.retrieve(t['question'],c)
+            context=await self.retrieve(aggregate.request+' '+hints,c)
             t['retrieval']=context
-            reusable,reason=reuse(previous,c,Warehouse(self.settings).watermark,t['owner'])
+            routing,reusable=route(aggregate,previous,c,Warehouse(self.settings).watermark,t['owner'])
+            t['routing']=routing;reason=routing['reason']
             t['reuse']={'reused':reusable,'reason':reason}
             if reusable:
                 result=copy.deepcopy(previous)
@@ -101,3 +120,4 @@ class Engine:
             self.step(t,'FAILED',safe,error={'code':getattr(exc,'code',type(exc).__name__),'message':safe})
         finally:
             self.store.save(t,t['state'],elapsed_ms=round((time.monotonic()-started)*1000,2),tool_calls=budget.events)
+            self.memory.record(t)

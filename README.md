@@ -1,8 +1,8 @@
 # Data Agent · 企业数仓问数与分析
 
-一个独立的、可在本地运行的问数项目。已实现：指标注册、结构化元数据检索、受控 SQL、MCP 调用、任务状态机、澄清恢复、多轮结果复用、统计图表、证据报告和回归评测。原 RAG 项目仅作参考，没有修改或复制凭据。
+一个独立的、可在本地运行的问数项目。已实现：指标注册、字段三视图 Schema RAG、真实混合检索与重排、上下文聚合和动态路由、长短期记忆、受控 SQL、MCP 调用、澄清恢复、统计图表和证据报告。原 RAG 项目仅作参考，没有修改或复制凭据。
 
-**当前是可运行的业务首版，尚未完成原技术方案的所有生产组件。** 默认使用离线规则解析器和词法哈希向量，明确标记为测试替身，不是真实模型或语义 Embedding。详细状态见 [实施状态](docs/IMPLEMENTATION_STATUS.md)。
+**当前是可运行的业务首版，尚未完成原技术方案的所有生产组件。** `.env.example` 推荐使用本地真实 Embedding + CrossEncoder；自然语言解析仍默认使用离线规则，配置模型 API 后可切换为原生 Tool Calling。测试使用词法替身，与真实检索验证分开记录。详细状态见 [实施状态](docs/IMPLEMENTATION_STATUS.md)。
 
 ## 立即运行
 
@@ -19,9 +19,12 @@ cd '/Users/ruoyangli/Desktop/大模型/Data Agent'
 
 ```bash
 python3 -m venv .venv
-.venv/bin/python -m pip install -r requirements.lock
+.venv/bin/python -m pip install -r requirements.lock -r requirements-neural.txt
+cp .env.example .env
 ./scripts/start.sh
 ```
+
+首次语义查询会从 Hugging Face 下载模型，缓存保存在 `runtime/models`，不进入 Git。仅运行轻量测试时可不安装 neural 依赖，并显式设置 `RETRIEVAL_BACKEND=fixture RERANK_BACKEND=fixture`。
 
 需要 Python 3.11+，SQLite 3.39+（CPA 模板使用 FULL OUTER JOIN）。程序启动时会检查 SQLite 版本。
 
@@ -32,7 +35,10 @@ python3 -m venv .venv
 3. `再按操作系统拆开` → 发现缺少维度，重新取数。
 4. `画趋势图` → 缺少日期维度时补查。
 5. 新建会话，输入 `上个月各渠道的新增用户数` → 澄清注册还是激活；输入 `注册人数` 后继续。
-6. 新建会话，输入 `2026-09-01 至 2026-09-20 的 D7 留存率` → 明确提示排除尚未成熟的注册队列。
+6. 点击“收藏此结果”，勾选左侧记忆，新建会话后输入 `画柱状图` → 跨会话复用；过期后按保存的契约重新取数。
+7. 输入 `回到第一个结果画柱状图` → 使用较早结果；输入 `刷新数据` → 强制重新取数。
+8. 连续对话超过 6 轮后，展开“上下文聚合、路由和短期记忆”检查最近窗口和异步历史摘要。
+9. 新建会话，输入 `2026-09-01 至 2026-09-20 的 D7 留存率` → 明确提示排除尚未成熟的注册队列。
 
 离线演示将当前日期固定为 **2026-09-22**，模拟数据完整范围为 **2026-06-01 至 2026-09-20**。因此“上个月”指 2026 年 8 月，不随机器日期变化。无日期的新问题也使用上个完整自然月，最终契约明确展示日期。
 
@@ -57,9 +63,11 @@ MODEL_NAME=your-tool-calling-model
 MODEL_API_KEY=your-key
 ```
 
-接口需支持 `/chat/completions` 和原生 `tools`、`tool_choice`。当前代码有查询计划及分析角色的 Tool Calling 适配；尚未使用真实凭据联调。模型只选择登记指标、参数和分析类型，SQL 计算与结果统计由程序完成。
+接口需支持 `/chat/completions` 和原生 `tools`、`tool_choice`。当前代码有上下文聚合、查询计划、分析决策及后台摘要的 Tool Calling 适配；尚未使用真实凭据联调。模型只选择登记指标、参数和分析类型，SQL 计算与结果统计由程序完成。
 
-语义向量检索另外配置 `EMBEDDING_BASE_URL`、`EMBEDDING_MODEL`、`EMBEDDING_API_KEY`。接口需支持 `/embeddings`。重排接口配置 `RERANK_URL/MODEL/API_KEY`，输入 `{model,query,documents,top_n}`，返回 `results[].index`；供应商协议不同则需增加适配。没有配置时显示 `offline_lexical_hash` 和 `offline_token_overlap`，不冒充真实语义检索和模型重排。
+本地语义检索不需要 API Key：`RETRIEVAL_BACKEND=local`、`RERANK_BACKEND=local`。使用 [BAAI/bge-small-zh-v1.5](https://huggingface.co/BAAI/bge-small-zh-v1.5) 中文 Embedding 和 [mmarco-mMiniLMv2](https://huggingface.co/cross-encoder/mmarco-mMiniLMv2-L12-H384-v1) 多语言交叉编码重排。BM25 和向量各召回 24 个候选，经 RRF 融合，再对候选进行模型重排，最后补齐指标依赖和关联路径。
+
+远程服务可设 `RETRIEVAL_BACKEND=remote` 并配置 `EMBEDDING_BASE_URL/MODEL/API_KEY`；`RERANK_BACKEND=remote` 配置 `RERANK_URL/MODEL/API_KEY`。未配置后端且没有服务变量时，代码回退为 fixture 并明确标识，不静默冒充语义检索。检索、三层字段索引、记忆和路由的实现说明见 [设计文档](docs/RETRIEVAL_AND_MEMORY.md)。
 
 可选 Milvus 后端代码位于 `retrieval.py`，安装 `pip install 'pymilvus>=2.5,<3'` 并设置 `MILVUS_URI`、`MILVUS_TOKEN` 后使用；当前未联调。不配置时使用内存向量索引，BM25 在应用层计算。模型版本改变需要新建索引，索引名由 Schema 与模型配置派生。
 
@@ -68,9 +76,10 @@ MODEL_API_KEY=your-key
 ```bash
 .venv/bin/python -m pytest -q
 .venv/bin/python evals/run.py
+.venv/bin/python evals/retrieval_local.py  # 真实本地模型，首次需要下载
 ```
 
-已验证的离线回归：42 项自动化测试；另有 30 个查询场景、8 个多轮场景、2 个澄清场景。参考结果来自独立 Python 计算，未调用生产 SQL 编译器。报告保存到 `evals/latest_offline.json`。
+已验证的离线回归：53 项自动化测试；另有 30 个查询场景、8 个多轮场景、2 个澄清场景。参考结果来自独立 Python 计算，未调用生产 SQL 编译器。报告保存到 `evals/latest_offline.json`。另外 6 条真实本地语义检索开发样本均命中目标 Top 5，记录在 `evals/latest_local_retrieval.json`；首次加载约 9.3 秒，后续单次约 278–394 ms，仅代表本机该次运行。
 
 这些是开发回归场景，不是独立盲测集。输出中 `llm_accuracy=null`；不能将全部通过写成“模型准确率 100%”。依赖补全消融只验证注册表补全规则的覆盖效果。真实模型基线、模型消融、Token 成本和实际端到端延迟须接入服务后另外测试。
 
@@ -87,7 +96,10 @@ docker compose up --build -d
 ```text
 data_agent/
   catalog.py      指标、表字段、关联元数据与结构化分块
-  retrieval.py    BM25、向量、RRF、重排及依赖补全
+  schema.py       字段三级视图、关联路径和 Schema 子图
+  retrieval.py    BM25、真实向量、RRF、CrossEncoder 重排及依赖补全
+  context.py      多轮请求聚合、候选结果引用和最终路由
+  memory.py       最近窗口、异步摘要队列、主动长期记忆
   planner.py      离线解析器 / 原生 Tool Calling 适配
   engine.py       状态编排、查询和分析角色、预算
   query.py        指标编译、SQLGlot 校验、只读执行

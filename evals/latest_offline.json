@@ -13,8 +13,8 @@
     "with_expansion": 30
   },
   "end_to_end_ms": {
-    "p50": 13.71,
-    "p95": 57.77,
+    "p50": 17.75,
+    "p95": 61.22,
     "transport": "local"
   },
   "details": [

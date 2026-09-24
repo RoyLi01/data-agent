@@ -20,20 +20,21 @@ class Store:
         try:yield db;db.commit()
         except:db.rollback();raise
         finally:db.close()
-    def create(self,question,session_id,request_id,owner):
+    def create(self,question,session_id,request_id,owner,memory_ids=None):
+        memory_ids=list(dict.fromkeys(memory_ids or []))
         with self.connect() as db:
             db.execute('BEGIN IMMEDIATE')
             old=db.execute('SELECT * FROM tasks WHERE owner=? AND request_id=?',(owner,request_id)).fetchone()
             if old:
                 payload=json.loads(old['payload'])
-                if payload['question']!=question or (session_id and old['session_id']!=session_id):raise Conflict('幂等键已用于不同请求')
+                if payload['question']!=question or payload.get('memory_ids',[])!=memory_ids or (session_id and old['session_id']!=session_id):raise Conflict('幂等键已用于不同请求')
                 return self._task(old),False
             if session_id:
                 if not db.execute('SELECT 1 FROM sessions WHERE id=? AND owner=?',(session_id,owner)).fetchone():raise KeyError('会话不存在')
                 if db.execute("SELECT 1 FROM tasks WHERE session_id=? AND state NOT IN ('COMPLETED','FAILED')",(session_id,)).fetchone():raise Conflict('当前会话已有未完成任务，请先处理澄清或等待完成')
             else:
                 session_id=uid();db.execute('INSERT INTO sessions VALUES (?,?)',(session_id,owner))
-            task={'id':uid(),'session_id':session_id,'owner':owner,'request_id':request_id,'state':'RECEIVED','version':0,'question':question,'trace':[]}
+            task={'id':uid(),'session_id':session_id,'owner':owner,'request_id':request_id,'state':'RECEIVED','version':0,'question':question,'memory_ids':memory_ids,'trace':[]}
             db.execute('INSERT INTO tasks VALUES (?,?,?,?,?,?,?)',(task['id'],session_id,owner,request_id,task['state'],0,json.dumps(task,ensure_ascii=False)))
             return task,True
     def _task(self,row):

@@ -42,6 +42,15 @@ class Ask(BaseModel):
     session_id: str | None = None
     request_id: str = Field(min_length=1,max_length=100)
 
+    memory_ids: list[str] = Field(default_factory=list,max_length=8)
+
+class SaveMemory(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    kind: Literal['field','table','result']
+    source_id: str = Field(min_length=1,max_length=200)
+    title: str = Field(default='',max_length=120)
+    note: str = Field(default='',max_length=2000)
+
 class Resume(BaseModel):
     model_config = ConfigDict(extra='forbid')
     answer: str = Field(min_length=1,max_length=2000)
