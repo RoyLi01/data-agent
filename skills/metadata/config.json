@@ -1,0 +1,10 @@
+{
+  "name": "metadata_search",
+  "description": "字段找表和加工来源查询",
+  "allowed_tools": [
+    "find_tables_by_fields",
+    "search_metadata",
+    "trace_lineage"
+  ],
+  "max_calls": 6
+}

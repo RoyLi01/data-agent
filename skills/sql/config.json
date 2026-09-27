@@ -1,0 +1,10 @@
+{
+  "name": "general_query",
+  "description": "登记数据集内的受控 SQL 及有限纠错",
+  "allowed_tools": [
+    "search_metadata",
+    "generate_sql",
+    "query_sql"
+  ],
+  "max_calls": 9
+}

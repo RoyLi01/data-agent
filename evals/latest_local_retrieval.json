@@ -1,0 +1,96 @@
+{
+  "evaluation_type": "local_neural_retrieval_smoke",
+  "llm_accuracy": null,
+  "embedding_model": "BAAI/bge-small-zh-v1.5",
+  "rerank_model": "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
+  "schema_version": "797705a864cd6467",
+  "cases": 6,
+  "hit_at_5_count": 6,
+  "details": [
+    {
+      "question": "用户完成注册后一周还有多少人回来使用？",
+      "expected": "metric:retention_d7",
+      "top5": [
+        "metric:retention_d7",
+        "field:activity.user_id",
+        "field:users.user_id",
+        "metric:activation_rate",
+        "field:activity.event_date"
+      ],
+      "hit_at_5": true,
+      "rank": 1,
+      "elapsed_ms": 9295.94
+    },
+    {
+      "question": "每带来一个成功激活的客户，推广平均需要花多少钱？",
+      "expected": "metric:cpa",
+      "top5": [
+        "field:spend.channel_id",
+        "table:spend",
+        "field:spend.event_date",
+        "metric:cpa",
+        "metric:activations"
+      ],
+      "hit_at_5": true,
+      "rank": 4,
+      "elapsed_ms": 277.98
+    },
+    {
+      "question": "注册后的头七天内开始使用产品的人占注册人数的比例",
+      "expected": "metric:activation_rate",
+      "top5": [
+        "metric:activation_rate",
+        "metric:retention_d7",
+        "field:users.user_id",
+        "field:activity.user_id",
+        "field:activity.event_date"
+      ],
+      "hit_at_5": true,
+      "rank": 1,
+      "elapsed_ms": 294.29
+    },
+    {
+      "question": "按开户日期计算新增注册账户总数",
+      "expected": "metric:registrations",
+      "top5": [
+        "metric:registrations",
+        "field:users.user_id",
+        "field:users.registration_date",
+        "table:users",
+        "relation:activations.user_id=users.user_id"
+      ],
+      "hit_at_5": true,
+      "rank": 1,
+      "elapsed_ms": 394.26
+    },
+    {
+      "question": "排除失败和重复事件后实际激活的人数",
+      "expected": "metric:activations",
+      "top5": [
+        "field:activations.event_date",
+        "field:activations.status",
+        "field:activations.user_id",
+        "metric:activations",
+        "field:users.user_id"
+      ],
+      "hit_at_5": true,
+      "rank": 4,
+      "elapsed_ms": 340.62
+    },
+    {
+      "question": "只看信息流而不是搜索投放，应使用哪个分类字段？",
+      "expected": "field:channels.category",
+      "top5": [
+        "field:channels.category",
+        "relation:users.channel_id=channels.channel_id",
+        "relation:activity.user_id=users.user_id",
+        "table:channels",
+        "relation:activations.user_id=users.user_id"
+      ],
+      "hit_at_5": true,
+      "rank": 1,
+      "elapsed_ms": 295.52
+    }
+  ],
+  "note": "真实本地 Embedding + CrossEncoder 的小样本开发验证；未调用 LLM，不是独立盲测或生产准确率。首次延迟包括模型加载。"
+}

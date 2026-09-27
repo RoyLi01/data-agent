@@ -1,0 +1,4 @@
+# Optional local Embedding and CrossEncoder runtime, tested on Python 3.11 macOS.
+sentence-transformers==5.7.0
+transformers==5.17.0
+huggingface-hub==1.32.0
