@@ -54,7 +54,7 @@ def local_model(name, rerank=False):
 class Retriever:
     """元数据检索器：双路召回、RRF 融合、重排和依赖补全。"""
 
-    def __init__(self, backend=None, rerank_backend=None):
+    def __init__(self, backend=None, rerank_backend=None, profiles=None):
         self.backend = backend or os.getenv(
             "RETRIEVAL_BACKEND", "remote" if os.getenv("EMBEDDING_MODEL") else "fixture"
         )
@@ -71,7 +71,7 @@ class Retriever:
         ) or self.rerank_backend not in ("fixture", "local", "remote"):
             raise ValueError("未知检索后端")
         self.semantic = self.backend != "fixture"
-        self.docs = index_documents()
+        self.docs = index_documents(profiles)
         self.by_id = {d["id"]: d for d in self.docs}
         self.tf = [Counter(tokens(d["keyword_text"])) for d in self.docs]
         self.df = Counter(t for c in self.tf for t in c)

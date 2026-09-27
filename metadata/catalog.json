@@ -1,0 +1,1364 @@
+{
+  "version": 2,
+  "tables": {
+    "users": {
+      "description": "注册用户明细，每用户一行；渠道、操作系统为注册时快照",
+      "grain": "user_id",
+      "columns": {
+        "user_id": "用户唯一标识",
+        "registration_date": "注册自然日",
+        "channel_id": "注册归属渠道",
+        "os": "注册时操作系统"
+      },
+      "layer": "SOURCE",
+      "domain": "growth",
+      "primary_key": [
+        "user_id"
+      ],
+      "fields": {
+        "user_id": {
+          "type": "INTEGER",
+          "description": "用户唯一标识",
+          "aliases": [
+            "用户ID",
+            "用户标识"
+          ],
+          "role": "identifier",
+          "unit": null
+        },
+        "registration_date": {
+          "type": "TEXT",
+          "description": "注册自然日",
+          "aliases": [
+            "注册日期"
+          ],
+          "role": "time",
+          "unit": null
+        },
+        "channel_id": {
+          "type": "INTEGER",
+          "description": "注册归属渠道",
+          "aliases": [
+            "渠道ID"
+          ],
+          "role": "identifier",
+          "unit": null
+        },
+        "os": {
+          "type": "TEXT",
+          "description": "注册时操作系统",
+          "aliases": [
+            "操作系统"
+          ],
+          "role": "dimension",
+          "unit": null
+        }
+      }
+    },
+    "activations": {
+      "description": "激活事件明细，含失败和重复成功记录",
+      "grain": "activation_id",
+      "columns": {
+        "activation_id": "激活事件主键",
+        "user_id": "用户标识",
+        "event_date": "激活自然日",
+        "status": "success 或 failed；成功条件必须过滤"
+      },
+      "layer": "SOURCE",
+      "domain": "growth",
+      "primary_key": [
+        "activation_id"
+      ],
+      "fields": {
+        "activation_id": {
+          "type": "INTEGER",
+          "description": "激活事件主键",
+          "aliases": [],
+          "role": "identifier",
+          "unit": null
+        },
+        "user_id": {
+          "type": "INTEGER",
+          "description": "用户标识",
+          "aliases": [
+            "用户ID",
+            "用户标识"
+          ],
+          "role": "identifier",
+          "unit": null
+        },
+        "event_date": {
+          "type": "TEXT",
+          "description": "激活自然日",
+          "aliases": [
+            "事件日期"
+          ],
+          "role": "time",
+          "unit": null
+        },
+        "status": {
+          "type": "TEXT",
+          "description": "success 或 failed；成功条件必须过滤",
+          "aliases": [],
+          "role": "dimension",
+          "unit": null
+        }
+      }
+    },
+    "activity": {
+      "description": "用户日活事实，同一用户同一天仅一行",
+      "grain": "user_id,event_date",
+      "columns": {
+        "user_id": "活跃用户",
+        "event_date": "活跃自然日"
+      },
+      "layer": "SOURCE",
+      "domain": "growth",
+      "primary_key": [
+        "user_id",
+        "event_date"
+      ],
+      "fields": {
+        "user_id": {
+          "type": "INTEGER",
+          "description": "活跃用户",
+          "aliases": [
+            "用户ID",
+            "用户标识"
+          ],
+          "role": "identifier",
+          "unit": null
+        },
+        "event_date": {
+          "type": "TEXT",
+          "description": "活跃自然日",
+          "aliases": [
+            "事件日期"
+          ],
+          "role": "time",
+          "unit": null
+        }
+      }
+    },
+    "channels": {
+      "description": "渠道维表，每渠道一行",
+      "grain": "channel_id",
+      "columns": {
+        "channel_id": "渠道唯一键",
+        "channel_name": "渠道名称",
+        "category": "渠道类别：信息流、搜索、自然"
+      },
+      "layer": "SOURCE",
+      "domain": "growth",
+      "primary_key": [
+        "channel_id"
+      ],
+      "fields": {
+        "channel_id": {
+          "type": "INTEGER",
+          "description": "渠道唯一键",
+          "aliases": [
+            "渠道ID"
+          ],
+          "role": "identifier",
+          "unit": null
+        },
+        "channel_name": {
+          "type": "TEXT",
+          "description": "渠道名称",
+          "aliases": [],
+          "role": "dimension",
+          "unit": null
+        },
+        "category": {
+          "type": "TEXT",
+          "description": "渠道类别：信息流、搜索、自然",
+          "aliases": [],
+          "role": "dimension",
+          "unit": null
+        }
+      }
+    },
+    "spend": {
+      "description": "渠道每日花费，人民币元；没有操作系统或用户粒度",
+      "grain": "event_date,channel_id",
+      "columns": {
+        "event_date": "花费自然日",
+        "channel_id": "花费所属渠道",
+        "amount": "人民币花费"
+      },
+      "layer": "SOURCE",
+      "domain": "growth",
+      "primary_key": [
+        "event_date",
+        "channel_id"
+      ],
+      "fields": {
+        "event_date": {
+          "type": "TEXT",
+          "description": "花费自然日",
+          "aliases": [
+            "事件日期"
+          ],
+          "role": "time",
+          "unit": null
+        },
+        "channel_id": {
+          "type": "INTEGER",
+          "description": "花费所属渠道",
+          "aliases": [
+            "渠道ID"
+          ],
+          "role": "identifier",
+          "unit": null
+        },
+        "amount": {
+          "type": "REAL",
+          "description": "人民币花费",
+          "aliases": [],
+          "role": "dimension",
+          "unit": "元"
+        }
+      }
+    },
+    "ods_user": {
+      "description": "用户源快照，每用户一行",
+      "grain": "user_id",
+      "columns": {
+        "user_id": "用户唯一标识",
+        "registration_date": "注册自然日",
+        "channel_id": "注册归属渠道",
+        "os": "注册时操作系统"
+      },
+      "layer": "ODS",
+      "domain": "growth",
+      "primary_key": [
+        "user_id"
+      ],
+      "fields": {
+        "user_id": {
+          "type": "INTEGER",
+          "description": "用户唯一标识",
+          "aliases": [
+            "用户ID",
+            "用户标识"
+          ],
+          "role": "identifier",
+          "unit": null
+        },
+        "registration_date": {
+          "type": "TEXT",
+          "description": "注册自然日",
+          "aliases": [
+            "注册日期"
+          ],
+          "role": "time",
+          "unit": null
+        },
+        "channel_id": {
+          "type": "INTEGER",
+          "description": "注册归属渠道",
+          "aliases": [
+            "渠道ID"
+          ],
+          "role": "identifier",
+          "unit": null
+        },
+        "os": {
+          "type": "TEXT",
+          "description": "注册时操作系统",
+          "aliases": [
+            "操作系统"
+          ],
+          "role": "dimension",
+          "unit": null
+        }
+      }
+    },
+    "ods_activity": {
+      "description": "用户日活输入快照；不是点击事件日志",
+      "grain": "user_id,event_date",
+      "columns": {
+        "user_id": "活跃用户",
+        "event_date": "活跃自然日"
+      },
+      "layer": "ODS",
+      "domain": "growth",
+      "primary_key": [
+        "user_id",
+        "event_date"
+      ],
+      "fields": {
+        "user_id": {
+          "type": "INTEGER",
+          "description": "活跃用户",
+          "aliases": [
+            "用户ID",
+            "用户标识"
+          ],
+          "role": "identifier",
+          "unit": null
+        },
+        "event_date": {
+          "type": "TEXT",
+          "description": "活跃自然日",
+          "aliases": [
+            "事件日期"
+          ],
+          "role": "time",
+          "unit": null
+        }
+      }
+    },
+    "dim_channel": {
+      "description": "渠道维度，每渠道一行",
+      "grain": "channel_id",
+      "columns": {
+        "channel_id": "渠道唯一键",
+        "channel_name": "渠道名称",
+        "category": "渠道类别：信息流、搜索、自然"
+      },
+      "layer": "DIM",
+      "domain": "growth",
+      "primary_key": [
+        "channel_id"
+      ],
+      "fields": {
+        "channel_id": {
+          "type": "INTEGER",
+          "description": "渠道唯一键",
+          "aliases": [
+            "渠道ID"
+          ],
+          "role": "identifier",
+          "unit": null
+        },
+        "channel_name": {
+          "type": "TEXT",
+          "description": "渠道名称",
+          "aliases": [],
+          "role": "dimension",
+          "unit": null
+        },
+        "category": {
+          "type": "TEXT",
+          "description": "渠道类别：信息流、搜索、自然",
+          "aliases": [],
+          "role": "dimension",
+          "unit": null
+        }
+      }
+    },
+    "dwd_user_registration": {
+      "description": "用户首次注册明细，渠道和 OS 为注册快照",
+      "grain": "user_id",
+      "columns": {
+        "user_id": "用户唯一标识",
+        "registration_date": "注册自然日",
+        "channel_id": "注册归属渠道",
+        "os": "注册时操作系统"
+      },
+      "layer": "DWD",
+      "domain": "growth",
+      "primary_key": [
+        "user_id"
+      ],
+      "fields": {
+        "user_id": {
+          "type": "INTEGER",
+          "description": "用户唯一标识",
+          "aliases": [
+            "用户ID",
+            "用户标识"
+          ],
+          "role": "identifier",
+          "unit": null
+        },
+        "registration_date": {
+          "type": "TEXT",
+          "description": "注册自然日",
+          "aliases": [
+            "注册日期"
+          ],
+          "role": "time",
+          "unit": null
+        },
+        "channel_id": {
+          "type": "INTEGER",
+          "description": "注册归属渠道",
+          "aliases": [
+            "渠道ID"
+          ],
+          "role": "identifier",
+          "unit": null
+        },
+        "os": {
+          "type": "TEXT",
+          "description": "注册时操作系统",
+          "aliases": [
+            "操作系统"
+          ],
+          "role": "dimension",
+          "unit": null
+        }
+      }
+    },
+    "dwd_user_activity": {
+      "description": "用户日活明细，渠道和 OS 采用注册归属",
+      "grain": "user_id,event_date",
+      "primary_key": [
+        "user_id",
+        "event_date"
+      ],
+      "layer": "DWD",
+      "domain": "growth",
+      "columns": {
+        "user_id": "用户标识",
+        "event_date": "活跃日期",
+        "channel_id": "注册渠道",
+        "os": "注册操作系统"
+      },
+      "fields": {
+        "user_id": {
+          "type": "INTEGER",
+          "description": "用户标识",
+          "aliases": [
+            "用户ID",
+            "用户标识"
+          ],
+          "role": "identifier",
+          "unit": null
+        },
+        "event_date": {
+          "type": "TEXT",
+          "description": "活跃日期",
+          "aliases": [
+            "事件日期"
+          ],
+          "role": "time",
+          "unit": null
+        },
+        "channel_id": {
+          "type": "INTEGER",
+          "description": "注册渠道",
+          "aliases": [
+            "渠道ID"
+          ],
+          "role": "identifier",
+          "unit": null
+        },
+        "os": {
+          "type": "TEXT",
+          "description": "注册操作系统",
+          "aliases": [
+            "操作系统"
+          ],
+          "role": "dimension",
+          "unit": null
+        }
+      }
+    },
+    "dws_channel_registration_day": {
+      "description": "日注册人数",
+      "grain": "event_date,channel_id",
+      "primary_key": [
+        "event_date",
+        "channel_id"
+      ],
+      "layer": "DWS",
+      "domain": "growth",
+      "columns": {
+        "event_date": "统计日期",
+        "channel_id": "渠道ID",
+        "registrations": "日注册人数"
+      },
+      "fields": {
+        "event_date": {
+          "type": "TEXT",
+          "description": "统计日期",
+          "aliases": [
+            "事件日期"
+          ],
+          "role": "time",
+          "unit": null
+        },
+        "channel_id": {
+          "type": "INTEGER",
+          "description": "渠道ID",
+          "aliases": [
+            "渠道ID"
+          ],
+          "role": "identifier",
+          "unit": null
+        },
+        "registrations": {
+          "type": "INTEGER",
+          "description": "日注册人数",
+          "aliases": [],
+          "role": "measure",
+          "unit": "人"
+        }
+      }
+    },
+    "dws_channel_activity_day": {
+      "description": "日活跃人数，不可相加得到周期去重人数",
+      "grain": "event_date,channel_id",
+      "primary_key": [
+        "event_date",
+        "channel_id"
+      ],
+      "layer": "DWS",
+      "domain": "growth",
+      "columns": {
+        "event_date": "统计日期",
+        "channel_id": "渠道ID",
+        "active_users": "日活跃人数，不可相加得到周期去重人数"
+      },
+      "fields": {
+        "event_date": {
+          "type": "TEXT",
+          "description": "统计日期",
+          "aliases": [
+            "事件日期"
+          ],
+          "role": "time",
+          "unit": null
+        },
+        "channel_id": {
+          "type": "INTEGER",
+          "description": "渠道ID",
+          "aliases": [
+            "渠道ID"
+          ],
+          "role": "identifier",
+          "unit": null
+        },
+        "active_users": {
+          "type": "INTEGER",
+          "description": "日活跃人数，不可相加得到周期去重人数",
+          "aliases": [],
+          "role": "measure",
+          "unit": "人"
+        }
+      }
+    },
+    "ads_channel_growth_month": {
+      "description": "完整自然月渠道增长，月活由明细去重计算",
+      "grain": "month,channel_id",
+      "primary_key": [
+        "month",
+        "channel_id"
+      ],
+      "layer": "ADS",
+      "domain": "growth",
+      "columns": {
+        "month": "月份 YYYY-MM",
+        "channel_id": "渠道ID",
+        "registrations": "月注册人数",
+        "active_users": "周期去重活跃人数"
+      },
+      "fields": {
+        "month": {
+          "type": "TEXT",
+          "description": "月份 YYYY-MM",
+          "aliases": [],
+          "role": "time",
+          "unit": null
+        },
+        "channel_id": {
+          "type": "INTEGER",
+          "description": "渠道ID",
+          "aliases": [
+            "渠道ID"
+          ],
+          "role": "identifier",
+          "unit": null
+        },
+        "registrations": {
+          "type": "INTEGER",
+          "description": "月注册人数",
+          "aliases": [],
+          "role": "measure",
+          "unit": "人"
+        },
+        "active_users": {
+          "type": "INTEGER",
+          "description": "周期去重活跃人数",
+          "aliases": [],
+          "role": "measure",
+          "unit": "人"
+        }
+      }
+    },
+    "ad_plans": {
+      "description": "投放计划，每计划一行",
+      "grain": "plan_id",
+      "primary_key": [
+        "plan_id"
+      ],
+      "layer": "SOURCE",
+      "domain": "advertising",
+      "columns": {
+        "plan_id": "计划ID",
+        "channel_id": "所属渠道",
+        "plan_name": "计划名称"
+      },
+      "fields": {
+        "plan_id": {
+          "type": "INTEGER",
+          "description": "计划ID",
+          "aliases": [
+            "投放计划ID"
+          ],
+          "role": "identifier",
+          "unit": null
+        },
+        "channel_id": {
+          "type": "INTEGER",
+          "description": "所属渠道",
+          "aliases": [
+            "渠道ID"
+          ],
+          "role": "identifier",
+          "unit": null
+        },
+        "plan_name": {
+          "type": "TEXT",
+          "description": "计划名称",
+          "aliases": [],
+          "role": "dimension",
+          "unit": null
+        }
+      }
+    },
+    "plan_spend": {
+      "description": "计划每日花费；同渠道计划加总等于原渠道花费",
+      "grain": "event_date,plan_id",
+      "primary_key": [
+        "event_date",
+        "plan_id"
+      ],
+      "layer": "SOURCE",
+      "domain": "advertising",
+      "columns": {
+        "event_date": "花费日期",
+        "plan_id": "计划ID",
+        "amount": "花费"
+      },
+      "fields": {
+        "event_date": {
+          "type": "TEXT",
+          "description": "花费日期",
+          "aliases": [
+            "事件日期"
+          ],
+          "role": "time",
+          "unit": null
+        },
+        "plan_id": {
+          "type": "INTEGER",
+          "description": "计划ID",
+          "aliases": [
+            "投放计划ID"
+          ],
+          "role": "identifier",
+          "unit": null
+        },
+        "amount": {
+          "type": "REAL",
+          "description": "花费",
+          "aliases": [],
+          "role": "measure",
+          "unit": "元"
+        }
+      }
+    },
+    "acquisitions": {
+      "description": "模拟注册唯一归因，无归因用户不写入，每用户至多一行",
+      "grain": "user_id",
+      "primary_key": [
+        "user_id"
+      ],
+      "layer": "SOURCE",
+      "domain": "advertising",
+      "columns": {
+        "user_id": "注册用户ID",
+        "plan_id": "注册归属计划",
+        "registration_date": "注册日期"
+      },
+      "fields": {
+        "user_id": {
+          "type": "INTEGER",
+          "description": "注册用户ID",
+          "aliases": [
+            "用户ID",
+            "用户标识"
+          ],
+          "role": "identifier",
+          "unit": null
+        },
+        "plan_id": {
+          "type": "INTEGER",
+          "description": "注册归属计划",
+          "aliases": [
+            "投放计划ID"
+          ],
+          "role": "identifier",
+          "unit": null
+        },
+        "registration_date": {
+          "type": "TEXT",
+          "description": "注册日期",
+          "aliases": [
+            "注册日期"
+          ],
+          "role": "time",
+          "unit": null
+        }
+      }
+    },
+    "creators": {
+      "description": "模拟内容创作者",
+      "grain": "creator_id",
+      "primary_key": [
+        "creator_id"
+      ],
+      "layer": "SOURCE",
+      "domain": "content",
+      "columns": {
+        "creator_id": "创作者ID",
+        "creator_name": "创作者名称"
+      },
+      "fields": {
+        "creator_id": {
+          "type": "INTEGER",
+          "description": "创作者ID",
+          "aliases": [],
+          "role": "identifier",
+          "unit": null
+        },
+        "creator_name": {
+          "type": "TEXT",
+          "description": "创作者名称",
+          "aliases": [],
+          "role": "dimension",
+          "unit": null
+        }
+      }
+    },
+    "contents": {
+      "description": "模拟内容维表，每内容一行",
+      "grain": "content_id",
+      "primary_key": [
+        "content_id"
+      ],
+      "layer": "SOURCE",
+      "domain": "content",
+      "columns": {
+        "content_id": "内容ID",
+        "creator_id": "创作者ID",
+        "title": "内容标题",
+        "category": "内容分类",
+        "published_date": "发布日期"
+      },
+      "fields": {
+        "content_id": {
+          "type": "INTEGER",
+          "description": "内容ID",
+          "aliases": [
+            "内容ID"
+          ],
+          "role": "identifier",
+          "unit": null
+        },
+        "creator_id": {
+          "type": "INTEGER",
+          "description": "创作者ID",
+          "aliases": [],
+          "role": "identifier",
+          "unit": null
+        },
+        "title": {
+          "type": "TEXT",
+          "description": "内容标题",
+          "aliases": [],
+          "role": "dimension",
+          "unit": null
+        },
+        "category": {
+          "type": "TEXT",
+          "description": "内容分类",
+          "aliases": [],
+          "role": "dimension",
+          "unit": null
+        },
+        "published_date": {
+          "type": "TEXT",
+          "description": "发布日期",
+          "aliases": [],
+          "role": "time",
+          "unit": null
+        }
+      }
+    },
+    "exposures": {
+      "description": "曝光事件，一次曝光可产生多次播放",
+      "grain": "exposure_id",
+      "primary_key": [
+        "exposure_id"
+      ],
+      "layer": "SOURCE",
+      "domain": "content",
+      "columns": {
+        "exposure_id": "曝光ID",
+        "content_id": "内容ID",
+        "user_id": "用户ID",
+        "event_date": "曝光日期"
+      },
+      "fields": {
+        "exposure_id": {
+          "type": "INTEGER",
+          "description": "曝光ID",
+          "aliases": [],
+          "role": "identifier",
+          "unit": null
+        },
+        "content_id": {
+          "type": "INTEGER",
+          "description": "内容ID",
+          "aliases": [
+            "内容ID"
+          ],
+          "role": "identifier",
+          "unit": null
+        },
+        "user_id": {
+          "type": "INTEGER",
+          "description": "用户ID",
+          "aliases": [
+            "用户ID",
+            "用户标识"
+          ],
+          "role": "identifier",
+          "unit": null
+        },
+        "event_date": {
+          "type": "TEXT",
+          "description": "曝光日期",
+          "aliases": [
+            "事件日期"
+          ],
+          "role": "time",
+          "unit": null
+        }
+      }
+    },
+    "plays": {
+      "description": "播放事件，重复播放保留；播放转化按曝光ID去重",
+      "grain": "play_id",
+      "primary_key": [
+        "play_id"
+      ],
+      "layer": "SOURCE",
+      "domain": "content",
+      "columns": {
+        "play_id": "播放ID",
+        "exposure_id": "来源曝光ID",
+        "content_id": "内容ID",
+        "user_id": "用户ID",
+        "event_date": "播放日期",
+        "watch_seconds": "观看秒数，允许未知空值"
+      },
+      "fields": {
+        "play_id": {
+          "type": "INTEGER",
+          "description": "播放ID",
+          "aliases": [],
+          "role": "identifier",
+          "unit": null
+        },
+        "exposure_id": {
+          "type": "INTEGER",
+          "description": "来源曝光ID",
+          "aliases": [],
+          "role": "identifier",
+          "unit": null
+        },
+        "content_id": {
+          "type": "INTEGER",
+          "description": "内容ID",
+          "aliases": [
+            "内容ID"
+          ],
+          "role": "identifier",
+          "unit": null
+        },
+        "user_id": {
+          "type": "INTEGER",
+          "description": "用户ID",
+          "aliases": [
+            "用户ID",
+            "用户标识"
+          ],
+          "role": "identifier",
+          "unit": null
+        },
+        "event_date": {
+          "type": "TEXT",
+          "description": "播放日期",
+          "aliases": [
+            "事件日期"
+          ],
+          "role": "time",
+          "unit": null
+        },
+        "watch_seconds": {
+          "type": "REAL",
+          "description": "观看秒数，允许未知空值",
+          "aliases": [],
+          "role": "measure",
+          "unit": "秒"
+        }
+      }
+    },
+    "interactions": {
+      "description": "播放后的互动事件；同播放可有多个事件",
+      "grain": "interaction_id",
+      "primary_key": [
+        "interaction_id"
+      ],
+      "layer": "SOURCE",
+      "domain": "content",
+      "columns": {
+        "interaction_id": "互动事件ID",
+        "play_id": "播放ID",
+        "event_date": "互动日期",
+        "interaction_type": "like/comment/share"
+      },
+      "fields": {
+        "interaction_id": {
+          "type": "INTEGER",
+          "description": "互动事件ID",
+          "aliases": [],
+          "role": "identifier",
+          "unit": null
+        },
+        "play_id": {
+          "type": "INTEGER",
+          "description": "播放ID",
+          "aliases": [],
+          "role": "identifier",
+          "unit": null
+        },
+        "event_date": {
+          "type": "TEXT",
+          "description": "互动日期",
+          "aliases": [
+            "事件日期"
+          ],
+          "role": "time",
+          "unit": null
+        },
+        "interaction_type": {
+          "type": "TEXT",
+          "description": "like/comment/share",
+          "aliases": [],
+          "role": "dimension",
+          "unit": null
+        }
+      }
+    },
+    "dws_plan_day": {
+      "description": "计划日花费与归因注册分别聚合后连接",
+      "grain": "event_date,plan_id",
+      "primary_key": [
+        "event_date",
+        "plan_id"
+      ],
+      "layer": "DWS",
+      "domain": "advertising",
+      "columns": {
+        "event_date": "统计日期",
+        "plan_id": "计划ID",
+        "amount": "花费",
+        "registrations": "归因注册人数"
+      },
+      "fields": {
+        "event_date": {
+          "type": "TEXT",
+          "description": "统计日期",
+          "aliases": [
+            "事件日期"
+          ],
+          "role": "time",
+          "unit": null
+        },
+        "plan_id": {
+          "type": "INTEGER",
+          "description": "计划ID",
+          "aliases": [
+            "投放计划ID"
+          ],
+          "role": "identifier",
+          "unit": null
+        },
+        "amount": {
+          "type": "REAL",
+          "description": "花费",
+          "aliases": [],
+          "role": "measure",
+          "unit": "元"
+        },
+        "registrations": {
+          "type": "INTEGER",
+          "description": "归因注册人数",
+          "aliases": [],
+          "role": "measure",
+          "unit": "人"
+        }
+      }
+    },
+    "dws_content_day": {
+      "description": "按曝光日统计，播放和互动独立聚合，避免扇出",
+      "grain": "event_date,content_id",
+      "primary_key": [
+        "event_date",
+        "content_id"
+      ],
+      "layer": "DWS",
+      "domain": "content",
+      "columns": {
+        "event_date": "曝光日期",
+        "content_id": "内容ID",
+        "exposures": "曝光次数",
+        "converted_exposures": "产生播放的去重曝光次数",
+        "plays": "播放事件数",
+        "interactions": "互动事件数"
+      },
+      "fields": {
+        "event_date": {
+          "type": "TEXT",
+          "description": "曝光日期",
+          "aliases": [
+            "事件日期"
+          ],
+          "role": "time",
+          "unit": null
+        },
+        "content_id": {
+          "type": "INTEGER",
+          "description": "内容ID",
+          "aliases": [
+            "内容ID"
+          ],
+          "role": "identifier",
+          "unit": null
+        },
+        "exposures": {
+          "type": "INTEGER",
+          "description": "曝光次数",
+          "aliases": [],
+          "role": "measure",
+          "unit": null
+        },
+        "converted_exposures": {
+          "type": "INTEGER",
+          "description": "产生播放的去重曝光次数",
+          "aliases": [],
+          "role": "measure",
+          "unit": null
+        },
+        "plays": {
+          "type": "INTEGER",
+          "description": "播放事件数",
+          "aliases": [],
+          "role": "measure",
+          "unit": null
+        },
+        "interactions": {
+          "type": "INTEGER",
+          "description": "互动事件数",
+          "aliases": [],
+          "role": "measure",
+          "unit": null
+        }
+      }
+    }
+  },
+  "relations": [
+    {
+      "left": "activations.user_id",
+      "right": "users.user_id",
+      "cardinality": "many-to-one"
+    },
+    {
+      "left": "activity.user_id",
+      "right": "users.user_id",
+      "cardinality": "many-to-one"
+    },
+    {
+      "left": "users.channel_id",
+      "right": "channels.channel_id",
+      "cardinality": "many-to-one"
+    },
+    {
+      "left": "spend.channel_id",
+      "right": "channels.channel_id",
+      "cardinality": "many-to-one"
+    },
+    {
+      "left": "ad_plans.channel_id",
+      "right": "channels.channel_id",
+      "cardinality": "many-to-one"
+    },
+    {
+      "left": "plan_spend.plan_id",
+      "right": "ad_plans.plan_id",
+      "cardinality": "many-to-one"
+    },
+    {
+      "left": "acquisitions.plan_id",
+      "right": "ad_plans.plan_id",
+      "cardinality": "many-to-one"
+    },
+    {
+      "left": "acquisitions.user_id",
+      "right": "users.user_id",
+      "cardinality": "many-to-one"
+    },
+    {
+      "left": "contents.creator_id",
+      "right": "creators.creator_id",
+      "cardinality": "many-to-one"
+    },
+    {
+      "left": "exposures.content_id",
+      "right": "contents.content_id",
+      "cardinality": "many-to-one"
+    },
+    {
+      "left": "exposures.user_id",
+      "right": "users.user_id",
+      "cardinality": "many-to-one"
+    },
+    {
+      "left": "plays.exposure_id",
+      "right": "exposures.exposure_id",
+      "cardinality": "many-to-one"
+    },
+    {
+      "left": "plays.content_id",
+      "right": "contents.content_id",
+      "cardinality": "many-to-one"
+    },
+    {
+      "left": "interactions.play_id",
+      "right": "plays.play_id",
+      "cardinality": "many-to-one"
+    },
+    {
+      "left": "dwd_user_activity.user_id",
+      "right": "dwd_user_registration.user_id",
+      "cardinality": "many-to-one"
+    },
+    {
+      "left": "dws_plan_day.plan_id",
+      "right": "ad_plans.plan_id",
+      "cardinality": "many-to-one"
+    },
+    {
+      "left": "dws_content_day.content_id",
+      "right": "contents.content_id",
+      "cardinality": "many-to-one"
+    },
+    {
+      "left": "dwd_user_registration.channel_id",
+      "right": "dim_channel.channel_id",
+      "cardinality": "many-to-one"
+    },
+    {
+      "left": "dwd_user_activity.channel_id",
+      "right": "dim_channel.channel_id",
+      "cardinality": "many-to-one"
+    },
+    {
+      "left": "dws_channel_registration_day.channel_id",
+      "right": "dim_channel.channel_id",
+      "cardinality": "many-to-one"
+    },
+    {
+      "left": "dws_channel_activity_day.channel_id",
+      "right": "dim_channel.channel_id",
+      "cardinality": "many-to-one"
+    },
+    {
+      "left": "ads_channel_growth_month.channel_id",
+      "right": "dim_channel.channel_id",
+      "cardinality": "many-to-one"
+    }
+  ],
+  "metrics": {
+    "registrations": {
+      "name": "注册用户数",
+      "aliases": [
+        "注册人数",
+        "新增注册"
+      ],
+      "rule": "按 registration_date 统计注册用户；用户表一用户一行",
+      "unit": "人",
+      "additive_over_time": true,
+      "deps": [
+        "users.user_id",
+        "users.registration_date"
+      ]
+    },
+    "activations": {
+      "name": "成功激活用户数",
+      "aliases": [
+        "激活人数",
+        "有效激活"
+      ],
+      "rule": "按激活发生日筛选 status=success 后 COUNT(DISTINCT user_id)，不可跨日相加作为周期去重人数",
+      "unit": "人",
+      "additive_over_time": false,
+      "deps": [
+        "activations.user_id",
+        "activations.event_date",
+        "activations.status",
+        "users.user_id"
+      ]
+    },
+    "activation_rate": {
+      "name": "注册七日激活率",
+      "aliases": [
+        "激活率",
+        "转化率"
+      ],
+      "rule": "注册日到注册后第6日成功激活的队列用户 / 同队列注册用户；仅展示观察期已完整的注册队列",
+      "unit": "比例",
+      "additive_over_time": false,
+      "deps": [
+        "users.user_id",
+        "users.registration_date",
+        "activations.user_id",
+        "activations.event_date",
+        "activations.status"
+      ]
+    },
+    "retention_d7": {
+      "name": "注册 D7 留存率",
+      "aliases": [
+        "D7留存",
+        "七日留存",
+        "7日留存"
+      ],
+      "rule": "注册后第7自然日活跃的队列用户 / 同队列注册用户；不是过去7日任一活跃；仅统计成熟队列",
+      "unit": "比例",
+      "additive_over_time": false,
+      "deps": [
+        "users.user_id",
+        "users.registration_date",
+        "activity.user_id",
+        "activity.event_date"
+      ]
+    },
+    "cpa": {
+      "name": "成功激活成本",
+      "aliases": [
+        "CPA",
+        "获客成本",
+        "激活成本"
+      ],
+      "rule": "同一日期范围渠道花费 / 该范围成功激活去重用户数；两事实分别聚合再关联；不支持操作系统拆分",
+      "unit": "元/人",
+      "additive_over_time": false,
+      "deps": [
+        "spend.amount",
+        "spend.event_date",
+        "spend.channel_id",
+        "activations.status",
+        "activations.user_id",
+        "activations.event_date",
+        "users.user_id",
+        "users.channel_id"
+      ]
+    }
+  },
+  "models": [
+    {
+      "name": "ods_user",
+      "sql_path": "warehouse/sql/ods_user.sql",
+      "upstream": [
+        "users"
+      ]
+    },
+    {
+      "name": "ods_activity",
+      "sql_path": "warehouse/sql/ods_activity.sql",
+      "upstream": [
+        "activity"
+      ]
+    },
+    {
+      "name": "dim_channel",
+      "sql_path": "warehouse/sql/dim_channel.sql",
+      "upstream": [
+        "channels"
+      ]
+    },
+    {
+      "name": "dwd_user_registration",
+      "sql_path": "warehouse/sql/dwd_user_registration.sql",
+      "upstream": [
+        "ods_user"
+      ]
+    },
+    {
+      "name": "dwd_user_activity",
+      "sql_path": "warehouse/sql/dwd_user_activity.sql",
+      "upstream": [
+        "ods_activity",
+        "dwd_user_registration"
+      ]
+    },
+    {
+      "name": "dws_channel_registration_day",
+      "sql_path": "warehouse/sql/dws_channel_registration_day.sql",
+      "upstream": [
+        "dwd_user_registration"
+      ]
+    },
+    {
+      "name": "dws_channel_activity_day",
+      "sql_path": "warehouse/sql/dws_channel_activity_day.sql",
+      "upstream": [
+        "dwd_user_activity"
+      ]
+    },
+    {
+      "name": "ads_channel_growth_month",
+      "sql_path": "warehouse/sql/ads_channel_growth_month.sql",
+      "upstream": [
+        "dwd_user_registration",
+        "dwd_user_activity"
+      ]
+    },
+    {
+      "name": "dws_plan_day",
+      "sql_path": "warehouse/sql/dws_plan_day.sql",
+      "upstream": [
+        "plan_spend",
+        "acquisitions"
+      ]
+    },
+    {
+      "name": "dws_content_day",
+      "sql_path": "warehouse/sql/dws_content_day.sql",
+      "upstream": [
+        "exposures",
+        "plays",
+        "interactions"
+      ]
+    }
+  ]
+}

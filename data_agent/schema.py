@@ -16,7 +16,7 @@ ALIASES = {
 }
 
 
-def index_documents():
+def index_documents(profiles=None):
     """按字段建立关键词、语义、重排三种视图，保留共同的文档 ID。"""
     docs = []
     for doc in chunks():
@@ -29,12 +29,15 @@ def index_documents():
             relations = [
                 r for r in RELATIONS if table + "." + column in (r["left"], r["right"])
             ]
+            definition = TABLES[table]["fields"][column]
+            profile = (profiles or {}).get("tables", {}).get(table, {}).get(column, {})
+            aliases = list(
+                dict.fromkeys(ALIASES.get(column, []) + definition.get("aliases", []))
+            )
             d["table"] = table
             d["field"] = column
             # 同一字段的三个表示分别服务于精确匹配、语义匹配和联合重排。
-            d["keyword_text"] = " ".join(
-                [table, column, *ALIASES.get(column, []), *metric_names]
-            )
+            d["keyword_text"] = " ".join([table, column, *aliases, *metric_names])
             d["semantic_text"] = (
                 f"{TABLES[table]['description']}。{column} 表示 {TABLES[table]['columns'][column]}。用于 {'、'.join(metric_names)}。"
             )
@@ -51,6 +54,10 @@ def index_documents():
             d["keyword_text"] = d["text"]
             d["semantic_text"] = d["text"]
             d["rerank_text"] = d["text"]
+        if d["kind"] == "field":
+            detail = f"；层级 {TABLES[table]['layer']}；类型 {definition['type']}；单位 {definition.get('unit')}；画像 {profile}"
+            d["semantic_text"] += detail
+            d["rerank_text"] += detail
         d["text"] = d["rerank_text"]
         docs.append(d)
     return docs

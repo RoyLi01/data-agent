@@ -339,6 +339,16 @@
         let html = `<div class="card"><h2>${esc(t.question)}</h2><div class="trace">${t.trace.map((x) => `<span title="${esc(x.note)}">${esc(x.state)}</span>`).join("")}</div><p class="muted">${esc(t.mode)} · ${t.elapsed_ms} ms · 任务 ${esc(t.id.slice(0, 8))}</p>`;
         if (pending) html += `<p class="warning">${esc(t.clarification)}</p>`;
         if (t.error) html += `<p class="error">${esc(t.error.message)}</p>`;
+        if (t.output) {
+          html += `<p>${esc(t.output.text)}</p>`;
+          const rows = t.output.rows || [];
+          const columns = t.query_result?.columns || (rows.length ? Object.keys(rows[0]) : []);
+          const value = v => typeof v === "object" ? JSON.stringify(v) : String(v ?? "");
+          if (rows.length) html += `<div class="table-wrap"><table><thead><tr>${columns.map(c => `<th>${esc(c)}</th>`).join("")}</tr></thead><tbody>${rows.slice(0, 200).map(r => `<tr>${columns.map(c => `<td>${esc(value(r[c]))}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+          if (rows.length > 200) html += `<p>界面展示前 200 行，完整返回结果可通过任务 API 查看。</p>`;
+          if (t.metadata?.next_cursor) html += `<p>还有下一页，可继续输入“下一页”。</p>`;
+          html += `<details><summary>查询依据与执行记录</summary><pre>${esc(JSON.stringify({ spec: t.query_spec, sql: t.query_result?.sql, source_plan: t.source_plan, attempts: t.sql_attempts, metadata: t.metadata, lineage: t.lineage }, null, 2))}</pre></details>`;
+        }
         if (t.report) {
           html += `<p>${esc(t.report.text)}</p><p class="muted">口径：${esc(t.report.metric_definition)}</p>`;
           if (t.reuse)

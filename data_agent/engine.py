@@ -21,8 +21,12 @@ class Engine:
     def __init__(self, settings=None):
         self.settings = settings or Settings.env()
         seed(self.settings.data_dir)
+        from .warehouse_build import build, read_profiles
+
+        self.warehouse_state = build(self.settings.data_dir)
+        self.profiles = read_profiles(self.settings.data_dir)
         self.store = Store(self.settings.data_dir)
-        self.retriever = Retriever()
+        self.retriever = Retriever(profiles=self.profiles)
         self.skills = SkillRegistry()
         self.planner = Planner(self.settings.mode, self.settings.as_of)
         self.gateway = Gateway(self.settings)
@@ -69,6 +73,10 @@ class Engine:
         started = time.monotonic()
         budget = Budget(self.settings.max_calls)
         try:
+            from .extended_engine import run_extended
+
+            if await run_extended(self, t, budget):
+                return
             query_skill = self.skills.load("metric_query")
             self.step(
                 t,

@@ -133,6 +133,8 @@ def report(task_id: str, owner=Depends(identity), e: Engine = Depends(engine)):
     t = e.store.get(task_id, owner)
     if t["state"] != "COMPLETED":
         raise HTTPException(409, "报告尚未完成")
+    if "report" not in t:
+        raise HTTPException(409, "本任务返回表格或目录结果，没有分析报告")
     return PlainTextResponse(
         t["report"]["markdown"],
         headers={"Content-Disposition": f'attachment; filename="report-{task_id}.md"'},
@@ -170,3 +172,69 @@ def session_context(
         ).fetchone():
             raise KeyError("会话不存在")
     return e.memory.snapshot(session_id, owner)
+
+
+from .metadata_search import MetadataSearchRequest
+from .sql_agent import QuerySpec
+from pydantic import BaseModel, ConfigDict, Field
+from .query import QueryError
+
+
+class SqlRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    sql: str = Field(min_length=1, max_length=20000)
+    spec: QuerySpec
+
+
+@app.exception_handler(QueryError)
+async def query_error(request, exc):
+    from fastapi.responses import JSONResponse
+
+    return JSONResponse(
+        status_code=422, content={"code": exc.code, "message": str(exc)}
+    )
+
+
+@app.exception_handler(ValueError)
+async def invalid_request(request, exc):
+    from fastapi.responses import JSONResponse
+
+    return JSONResponse(status_code=422, content={"message": str(exc)})
+
+
+@app.post("/api/metadata/search")
+async def metadata_search(
+    body: MetadataSearchRequest, owner=Depends(identity), e: Engine = Depends(engine)
+):
+    from .metadata_search import MetadataSearchRequest, search
+
+    request = body
+    if request.match_mode == "semantic":
+        import asyncio
+
+        return await asyncio.to_thread(search, request, e.retriever, None, e.profiles)
+    return await e.gateway.call(
+        "find_tables_by_fields", {"request": request.model_dump()}
+    )
+
+
+@app.get("/api/lineage/{table}")
+async def lineage(table: str, owner=Depends(identity), e: Engine = Depends(engine)):
+    return await e.gateway.call("trace_lineage", {"table": table})
+
+
+@app.get("/api/metadata/profiles")
+def metadata_profiles(owner=Depends(identity), e: Engine = Depends(engine)):
+    return e.profiles
+
+
+@app.post("/api/query/sql")
+async def general_sql(
+    body: SqlRequest, owner=Depends(identity), e: Engine = Depends(engine)
+):
+    from .sql_agent import QuerySpec
+
+    spec = body.spec
+    return await e.gateway.call(
+        "query_sql", {"sql": body.sql, "spec": spec.model_dump()}
+    )
